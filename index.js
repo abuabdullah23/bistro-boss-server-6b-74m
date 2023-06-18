@@ -22,7 +22,7 @@ const verifyJWT = (req, res, next) => {
     // verify a token symmetric
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
         if (err) {
-            return res.status(401).send({error: true, message: 'unauthorized access'})
+            return res.status(401).send({ error: true, message: 'unauthorized access' })
         }
         req.decoded = decoded;
         next();
@@ -61,6 +61,36 @@ async function run() {
             res.send({ token })
         })
 
+        // Warning: use VerifyJWT before using verifyAdmin
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email }
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ error: true, message: 'forbidden access' });
+            }
+            next();
+        }
+        /***
+         * 0. do not show secure links to those who should not see the links
+         * 1. use jwt token: verifyJWT
+         * 2. use verifyAdmin middleware
+        */
+
+        // admin api
+        // security layer: verifyJWT, is email same, check Adminn
+        app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+
+            if (req.decoded.email !== email) {
+                res.send({ admin: false })
+            }
+            const query = { email: email }
+            const user = await usersCollection.findOne(query);
+            const result = { admin: user?.role === 'admin' }
+            res.send(result);
+        })
+
 
         // user Related API
         app.post('/users', async (req, res) => {
@@ -74,7 +104,8 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/users', async (req, res) => {
+        // get data with verify admin
+        app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
             const result = await usersCollection.find().toArray();
             res.send(result);
         })
@@ -112,8 +143,8 @@ async function run() {
             }
 
             const decodedEmail = req.decoded.email;
-            if(email !== decodedEmail){
-                return res.status(403).send({error: true, message: 'forbidden access'})
+            if (email !== decodedEmail) {
+                return res.status(403).send({ error: true, message: 'forbidden access' })
             }
 
             const query = { email: email }
