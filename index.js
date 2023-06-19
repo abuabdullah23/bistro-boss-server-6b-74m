@@ -135,6 +135,32 @@ async function run() {
             res.send(result);
         })
 
+        // for update menu item by admin
+        app.get('/dashboard/update-menu/:id', async(req, res)=>{
+            const id = req.params.id;
+            const query = {_id: new ObjectId(id)};
+            const result = await menuCollection.findOne(query);
+            res.send(result);
+        })
+
+        // update user toys method
+        app.put('/dashboard/update-menu/:id', async (req, res) => {
+            const id = req.params.id;
+            const updatedItem = req.body;
+            const filter = { _id: new ObjectId(id) };
+            const options = { upsert: true };
+            const item = {
+                $set: {
+                    name: updatedItem.name,
+                    price: updatedItem.price,
+                    category: updatedItem.category,
+                    recipe: updatedItem.recipe
+                }
+            }
+            const result = await menuCollection.updateOne(filter, item, options);
+            res.send(result);
+        })
+
         app.post('/menu', async(req, res)=>{
             const newItem = req.body;
             const result = await menuCollection.insertOne(newItem);
