@@ -4,7 +4,9 @@ const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 require('dotenv').config()
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
+
 
 // Middleware
 app.use(cors());
@@ -104,9 +106,9 @@ async function run() {
             res.send(result);
         })
 
-        app.delete('/users/:id', verifyJWT, verifyAdmin, async(req, res)=>{
+        app.delete('/users/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await usersCollection.deleteOne(query);
             res.send(result);
         })
@@ -136,9 +138,9 @@ async function run() {
         })
 
         // for update menu item by admin
-        app.get('/dashboard/update-menu/:id', async(req, res)=>{
+        app.get('/dashboard/update-menu/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await menuCollection.findOne(query);
             res.send(result);
         })
@@ -161,15 +163,15 @@ async function run() {
             res.send(result);
         })
 
-        app.post('/menu', async(req, res)=>{
+        app.post('/menu', async (req, res) => {
             const newItem = req.body;
             const result = await menuCollection.insertOne(newItem);
             res.send(result);
         })
 
-        app.delete('/menu/:id', verifyJWT, verifyAdmin, async(req, res)=>{
+        app.delete('/menu/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
-            const query = { _id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await menuCollection.deleteOne(query);
             res.send(result);
         })
@@ -209,6 +211,21 @@ async function run() {
             const query = { _id: new ObjectId(id) }
             const result = await cartCollection.deleteOne(query);
             res.send(result);
+        })
+
+        // create payment intent
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const { price } = req.body;
+            const amount = price * 100;
+            console.log(price, amount)
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
         })
 
 
