@@ -54,6 +54,7 @@ async function run() {
         const menuCollection = client.db('bistroBoss').collection('menu');
         const reviewsCollection = client.db('bistroBoss').collection('reviews');
         const cartCollection = client.db('bistroBoss').collection('carts');
+        const paymentCollection = client.db('bistroBoss').collection('payments');
 
 
         // jwt
@@ -228,6 +229,16 @@ async function run() {
             })
         })
 
+        // payment related api
+        app.post('/payments', verifyJWT, async (req, res) => {
+            const payment = req.body;
+            const insertResult = await paymentCollection.insertOne(payment);
+
+            const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } };
+            const deleteResult = await cartCollection.deleteMany(query);
+
+            res.send({ insertResult, deleteResult });
+        })
 
 
 
