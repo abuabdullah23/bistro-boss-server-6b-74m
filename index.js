@@ -147,7 +147,7 @@ async function run() {
         })
 
         // update user toys method
-        app.put('/dashboard/update-menu/:id', async (req, res) => {
+        app.put('/dashboard/update-menu/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const updatedItem = req.body;
             const filter = { _id: new ObjectId(id) };
@@ -238,6 +238,23 @@ async function run() {
             const deleteResult = await cartCollection.deleteMany(query);
 
             res.send({ insertResult, deleteResult });
+        })
+
+        // ‍Admin State Api state
+        app.get('/admin-stats', verifyJWT, verifyAdmin, async(req, res)=> {
+            const users = await usersCollection.estimatedDocumentCount();
+            const products = await menuCollection.estimatedDocumentCount();
+            const orders = await paymentCollection.estimatedDocumentCount();
+
+            const payments = await paymentCollection.find().toArray();
+            const revenue = payments.reduce((sum, payment)=> sum + payment.price, 0);
+
+            res.send({
+                revenue,
+                users,
+                products,
+                orders
+            })
         })
 
 
