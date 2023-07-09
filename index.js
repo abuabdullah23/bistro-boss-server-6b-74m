@@ -81,7 +81,7 @@ async function run() {
         */
 
         // admin api
-        // security layer: verifyJWT, is email same, check Adminn
+        // security layer: verifyJWT, is email same, check Admin
         app.get('/users/admin/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
 
@@ -138,7 +138,7 @@ async function run() {
             res.send(result);
         })
 
-        // for update menu item by admin
+        // get menu item by admin
         app.get('/dashboard/update-menu/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
@@ -146,7 +146,7 @@ async function run() {
             res.send(result);
         })
 
-        // update user toys method
+        // update menu method by admin
         app.put('/dashboard/update-menu/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const updatedItem = req.body;
@@ -217,7 +217,7 @@ async function run() {
         // create payment intent
         app.post('/create-payment-intent', verifyJWT, async (req, res) => {
             const { price } = req.body;
-            const amount = price * 100;
+            const amount = parseInt(price * 100); // fixed invalid integer
             console.log(price, amount)
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: amount,
@@ -241,13 +241,13 @@ async function run() {
         })
 
         // ‍Admin State Api state
-        app.get('/admin-stats', verifyJWT, verifyAdmin, async(req, res)=> {
+        app.get('/admin-stats', verifyJWT, verifyAdmin, async (req, res) => {
             const users = await usersCollection.estimatedDocumentCount();
             const products = await menuCollection.estimatedDocumentCount();
             const orders = await paymentCollection.estimatedDocumentCount();
 
             const payments = await paymentCollection.find().toArray();
-            const revenue = payments.reduce((sum, payment)=> sum + payment.price, 0);
+            const revenue = payments.reduce((sum, payment) => sum + payment.price, 0);
 
             res.send({
                 revenue,
@@ -257,6 +257,54 @@ async function run() {
             })
         })
 
+
+        /**
+         * ---------------------
+         * Bangla System
+         * ---------------------
+         * 1. load all payments
+         * 2. for each payment, get the menuItems array
+         * 3. for each item in the menuItems array get the menuItem for the menu collection
+         * 4. put them in an array: allOrderedItems
+         * 5. separate allOrderedItems by category using filter
+         * 6. now get the quantity by using length: pizzas.length
+         * 7. for each category use reduce to get the total amount spent on the category
+         * 
+        */
+
+        // Best System
+        app.get('/order-stats', async (req, res) => {
+            try {
+                const pipeline = [
+                    {
+                        $lookup: {
+                            from: 'menu',
+                            localField: 'menuItems',
+                            foreignField: '_id',
+                            as: 'menuItemsData'
+                        }
+                    },
+                    {
+                        $unwind: '$menuItemsData'
+                    },
+                    {
+                        $group: {
+                            _id: '$menuItemsData.category',
+                            count: { $sum: 1 },
+                            totalPrice: { $sum: '$menuItemsData.price' }
+                        }
+                    }
+                ];
+
+                const result = await paymentCollection.aggregate(pipeline).toArray();
+                console.log('Aggregation result:', result); // Debugging statement
+
+                res.send(result);
+            } catch (error) {
+                console.error('Error occurred during aggregation:', error);
+                res.status(500).send('An error occurred during aggregation');
+            }
+        });
 
 
 
